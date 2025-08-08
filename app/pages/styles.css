@@ -858,52 +858,64 @@ i.Grayed {
   display: flex;
 }
 
-/* --- Fantasy Football Table Styles --- */
-.player-table-container {
-  max-height: 80vh;
-  overflow-y: auto;
-  border: 1px solid #ddd;
-}
+/* --- CORRECTED Fantasy Football Table Styles --- */
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #ddd;
-  text-align: left;
-  white-space: nowrap;
-}
-
-thead th {
-  background-color: #f2f2f2;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  cursor: help;
+/* This targets the main header for the columns */
+#table-head {
   border-bottom: 2px solid #ccc;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
 }
 
-tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
+#table-head .col {
+  font-weight: bold;
 }
 
-tbody tr:hover {
-  background-color: #e6f7ff;
-}
-
-button {
-  cursor: pointer;
-  padding: 5px 10px;
-  border: none;
-  background-color: #007bff;
-  color: white;
-  border-radius: 4px;
+/* This targets each player row */
+.row, .table-row { /* Using both just in case */
+  height: 40px; /* A little more space for the tier bubble */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-bottom: 1px solid #eee;
   transition: background-color 0.2s;
 }
 
-button:hover {
-  background-color: #0056b3;
+.row:nth-child(even), .table-row:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.row:hover, .table-row:hover {
+  background-color: #e6f7ff;
+  cursor: pointer;
+}
+
+/* Styling for the informational dots */
+.dot-group {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+}
+
+.dot {
+    height: 7px;
+    width: 7px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+/* Specific styling for the remove button */
+.Remove-Button {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.Remove-Button:hover {
+  color: #d62728; /* Red on hover */
 }
