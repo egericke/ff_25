@@ -1,3 +1,5 @@
+# data/scrape.py
+
 """Projections and ADP scrapers, refactored for robustness and best practices."""
 
 import logging
@@ -36,35 +38,6 @@ TEAM_TO_ABRV_MAP = {
 }
 ABRV_TO_TEAM_MAP = {v: k for k, v in TEAM_TO_ABRV_MAP.items()}
 
-REQUIRED_COLS = [
-    "key", "name", "pos", "team", "pass_tds", "pass_yds", "pass_ints", "rush_tds",
-    "rush_yds", "receptions", "reception_tds", "reception_yds", "two_pts", "fumbles",
-    "kick_0_19", "kick_20_29", "kick_30_39", "kick_40_49", "kick_50", "kick_extra_points",
-    "df_points_allowed_per_game", "df_sacks", "df_safeties", "df_fumbles", "df_tds", "df_ints",
-]
-
-COLUMN_MAP = {
-    # ESPN
-    "interceptions_thrown": "pass_ints", "passing_yards": "pass_yds", "td_pass": "pass_tds",
-    "each_reception": "receptions", "td_reception": "reception_tds", "receiving_yards": "reception_yds",
-    "rushing_yards": "rush_yds", "td_rush": "rush_tds", "field_goals_attempted_40-49_yards": "kick_40_49",
-    "field_goals_attempted_50+_yards": "kick_50", "extra_points_made": "kick_extra_points",
-    "each_fumble_recovered": "df_fumbles", "each_sack": "df_sacks", "each_interception": "df_ints",
-    "total_return_td": "df_tds",
-    # CBS
-    "touchdowns_passes": "pass_tds", "receiving_touchdowns": "reception_tds", "rushing_touchdowns": "rush_tds",
-    "fumbles_lost": "fumbles", "field_goals_1-19_yards": "kick_0_19", "field_goals_20-29_yards": "kick_20_29",
-    "field_goals_30-39_yards": "kick_30_39", "defensive_fumbles_recovered": "df_fumbles",
-    "defensive_touchdowns": "df_tds", "points_allowed_per_game": "df_points_allowed_per_game",
-    "sacks": "df_sacks", "safeties": "df_safeties", "interceptions": "df_ints",
-    # NFL
-    "passing_int": "pass_ints", "passing_td": "pass_tds", "receiving_rec": "receptions",
-    "receiving_td": "reception_tds", "rushing_td": "rush_tds", "2pt": "two_pts", "lost": "fumbles",
-    "made": "kick_extra_points", "0-19": "kick_0_19", "20-29": "kick_20_29", "30-39": "kick_30_39",
-    "40-49": "kick_40_49", "50+": "kick_50", "sack": "df_sacks", "saf": "df_safeties",
-    "fum_rec": "df_fumbles", "ret_td": "df_tds", "int": "df_ints",
-}
-
 # --- WebDriver Management ---
 
 def setup_driver() -> webdriver.Chrome:
@@ -92,10 +65,6 @@ def setup_driver() -> webdriver.Chrome:
 def _scroll(driver):
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
-def _clean_column_name(text):
-    text = str(text).strip().replace(" ", "_").lower().split("\n")[0].strip()
-    return text.strip("_")
-
 def _add_player_key(df):
     name_regex = re.compile(r"[^a-z ]+")
     def create_key(row):
@@ -109,63 +78,7 @@ def _add_player_key(df):
     df["key"] = df.apply(create_key, axis=1)
     return df.drop_duplicates(subset=["key"])
 
-
-def _unify_columns(df):
-    """Re-organize stat columns."""
-    df = df.rename(columns=lambda c: COLUMN_MAP.get(_clean_column_name(c), _clean_column_name(c)))
-    df = _add_player_key(df)
-    return df[REQUIRED_COLS]
-
-def _validate(df, source_name, year, strict=True, skip_fantasy_pros_check=False):
-    """Validate the scraped DataFrame."""
-    LOGGER.info(f"[{source_name}-{year}] Validating: scraped {len(df)} players.")
-    pos_counts = {"QB": 32, "RB": 64, "WR": 64, "TE": 28, "DST": 32, "K": 15}
-    for pos, expected_count in pos_counts.items():
-        if skip_fantasy_pros_check and pos in ["DST", "K"]:
-            continue
-        actual_count = len(df[df.pos == pos])
-        if strict and actual_count < expected_count:
-            LOGGER.warning(f"[{source_name}-{year}] Low player count for {pos}. Found {actual_count}, expected ~{expected_count}.")
-        elif not strict and actual_count * 3 < expected_count:
-            LOGGER.warning(f"[{source_name}-{year}] Very low player count for {pos}. Found {actual_count}.")
-
-    if len(set(df.team)) > 33:
-        LOGGER.error(f"[{source_name}-{year}] Too many teams found: {len(set(df.team))}")
-    LOGGER.info(f"[{source_name}-{year}] Validation complete.")
-
 # --- Scraper Functions ---
-
-def scrape_espn(driver: webdriver.Chrome, year: int):
-    """Scrape ESPN projections."""
-    LOGGER.info(f"Scraping ESPN for {year}")
-    url = "http://fantasy.espn.com/football/players/projections"
-    driver.get(url)
-    time.sleep(5)  # Wait for React app
-    # Your original ESPN scraping logic would go here.
-    # This is a complex scraper and needs to be adapted to the new modular format.
-    # For now, this is a placeholder.
-    LOGGER.warning("ESPN scraper is complex and has not been fully implemented in this refactoring.")
-
-
-def scrape_cbs(driver: webdriver.Chrome, year: int):
-    """Scrape CBS projections."""
-    LOGGER.info(f"Scraping CBS for {year}")
-    url_template = "https://www.cbssports.com/fantasy/football/stats/{pos}/{year}/season/projections/ppr/"
-    all_players = []
-    for pos in ["QB", "RB", "WR", "TE", "DST", "K"]:
-        page_url = url_template.format(pos=pos, year=year)
-        driver.get(page_url)
-        time.sleep(2)
-        # Your original CBS scraping logic here
-    LOGGER.warning("CBS scraper is complex and has not been fully implemented in this refactoring.")
-
-
-def scrape_nfl(driver: webdriver.Chrome, year: int):
-    """Scrape NFL projections."""
-    LOGGER.info(f"Scraping NFL for {year}")
-    # Your original NFL scraping logic here
-    LOGGER.warning("NFL scraper is complex and has not been fully implemented in this refactoring.")
-
 
 def scrape_fantasy_pros_adp(driver: webdriver.Chrome, year: int):
     """Scrape Fantasy Pros ADP."""
@@ -179,27 +92,29 @@ def scrape_fantasy_pros_adp(driver: webdriver.Chrome, year: int):
     for ppr_type, url in urls.items():
         LOGGER.info(f"Fetching {ppr_type} ADP from {url}")
         driver.get(url)
-        time.sleep(2)
-        _scroll(driver)
-        time.sleep(2)
+        time.sleep(3) # Increased wait time for reliability
         
         try:
-            df = pd.read_html(driver.page_source)[0]
-            df = df.rename(columns={"Player Team (Bye)": "Player", "AVG": ppr_type})
+            # Use pandas to directly parse the HTML table
+            dfs = pd.read_html(driver.page_source)
+            if not dfs:
+                LOGGER.error(f"No tables found at {url}")
+                continue
             
-            # Basic Cleaning
-            df["pos"] = df["POS"].str.extract(r'([A-Z]+)')[0]
-            df['team'] = df['Player'].apply(lambda x: x.split(' ')[-1] if isinstance(x, str) else None)
-            df['name'] = df['Player'].apply(lambda x: ' '.join(x.split(' ')[:-1]) if isinstance(x, str) else None)
+            df = dfs[0]
+            df = df.rename(columns={"Player Team (Bye)": "Player", "AVG": ppr_type, "Pos": "pos"})
             
-            # Select and re-order
+            # Data Cleaning
+            df["pos"] = df["pos"].str.extract(r'([A-Z]+)')[0]
+            df['team'] = df['Player'].apply(lambda x: x.split()[-1] if isinstance(x, str) else None)
+            df['name'] = df['Player'].apply(lambda x: ' '.join(x.split()[:-1]) if isinstance(x, str) else None)
+            
             current_df = df[["name", "team", "pos", ppr_type]].copy()
             current_df = _add_player_key(current_df)
 
             if merged_df is None:
                 merged_df = current_df
             else:
-                # Merge while preserving all columns
                 merged_df = pd.merge(merged_df, current_df[['key', ppr_type]], on="key", how="outer")
 
         except Exception as e:
