@@ -1,48 +1,33 @@
 import { Input, InputRef, Tooltip } from 'antd';
 import * as React from 'react';
-import { IPlayer, Position } from '../lib/models/Player';
+import { Player } from '../lib/models/Player'; // Use the new unified Player model
 import PlayerTableRow from './PlayerTableRow';
 
 /** All possible positions. ? Means any position, don't filter */
-const filterPositions: Position[] = ['?', 'QB', 'RB', 'WR', 'TE', 'DST', 'K'];
-
-interface ITablePlayer extends IPlayer {
-  /** eg: A. Rodgers */
-  tableName: string;
-}
+const filterPositions: Player['Pos'][] = ['QB', 'RB', 'WR', 'TE', 'DST', 'K'];
 
 interface IPlayerTableProps {
-  adpCol: string;
   byeWeeks: { [key: number]: boolean };
   currentPick: number;
   draftSoon: boolean[];
   filteredPlayers: boolean[];
   mobile: boolean;
   nameFilter: string;
-  onPickPlayer: (player: IPlayer) => void;
-  players: ITablePlayer[];
-  positionsToShow: Position[];
-  rbHandcuffs: Set<IPlayer>;
-  recommended: Set<IPlayer>; // names that are recommended
+  onPickPlayer: (player: Player) => void;
+  players: Player[]; // Use the new Player type
+  positionsToShow: Player['Pos'][];
+  rbHandcuffs: Set<Player>;
+  recommended: Set<Player>; // names that are recommended
   resetPositionFilter: () => void; // reset positions
-  onRemovePlayer: (player: IPlayer) => void;
+  onRemovePlayer: (player: Player) => void;
   setNameFilter: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  togglePositionFilter: (pos: Position) => void;
+  togglePositionFilter: (pos: Player['Pos'] | '?') => void; // Allow '?' for All
   skip: () => void;
   undo: () => void;
   valuedPositions: { [key: string]: boolean };
 }
 
-/**
- * Player table, central part of the app. Clicking on a row with "pick"
- * that player, drafting them to the selected team and clearing them from the table
- *
- * Also showing information that's useful for drafting, like whether the player
- * is in a "valuable position" (unfilled starting position), has a bye week conflict
- * with another starter (will both sit that week), or is a handcuff to another RB
- */
 export default ({
-  adpCol,
   byeWeeks,
   draftSoon,
   filteredPlayers,
@@ -83,23 +68,29 @@ export default ({
 
           {/* Buttons for filtering on position */}
           <div className="PlayerTable-Position-Buttons">
+            {/* "All" button first */}
+            <button
+              key="all"
+              className={positionsToShow.length === 0 ? 'Active' : ''}
+              onClick={() => togglePositionFilter('?')}>
+              All
+            </button>
+            {/* Then specific positions */}
             {filterPositions.map((p) => (
               <button
                 key={p}
                 className={positionsToShow.indexOf(p) > -1 ? 'Active' : ''}
                 onClick={() => togglePositionFilter(p)}>
-                {p === '?' ? 'All' : p}
+                {p}
               </button>
             ))}
           </div>
 
-          {/* Buttons for skipping and undoing actions */}
           {!mobile && (
             <div className="Player-Table-Control-Buttons">
               <button className="Grayed skip-button" onClick={skip}>
                 Skip
               </button>
-
               <button className="Grayed undo-button" onClick={undo}>
                 Undo
               </button>
@@ -122,36 +113,39 @@ export default ({
             </>
           )}
         </div>
+        
+        {/* UPDATED TABLE HEADERS */}
         <div id="table-head">
-          <div className="col col-name">
-            <p>Name</p>
-          </div>
-          <p className="col col-pos">Position</p>
-          <p className="col col-team">Team</p>
-          <p className="col col-vor" data-tip="Value over replacement">
-            <Tooltip title="Value over replacement">
-              <span>Value</span>
-            </Tooltip>
-          </p>
-          <p className="col col-prediction">
-            <Tooltip title="Experts' consensus projection">
-              <span>{!mobile ? 'Projection' : 'Points'}</span>
-            </Tooltip>
-          </p>
-
-          {/* Table headers not rendered on mobile */}
-          {!mobile && (
-            <>
-              <p className="col col-adp">
-                <Tooltip title="Average draft position">
-                  <span>ADP</span>
+            <p className="col col-name">Name</p>
+            <p className="col col-pos">Pos</p>
+            <p className="col col-team">Team</p>
+            <p className="col" data-tip="Value over replacement">
+                <Tooltip title="Value Over Replacement Player">
+                    <span>VORP</span>
                 </Tooltip>
-              </p>
-              <p className="col col-remove" style={{ paddingRight: 12 }}>
-                Remove
-              </p>
-            </>
-          )}
+            </p>
+            <p className="col" data-tip="Positional Tier">
+                <Tooltip title="Positional Tier">
+                    <span>Tier</span>
+                </Tooltip>
+            </p>
+            <p className="col" data-tip="Expert Disagreement / Risk">
+                <Tooltip title="Expert Disagreement / Risk">
+                    <span>Risk</span>
+                </Tooltip>
+            </p>
+            {!mobile && (
+                <>
+                    <p className="col col-adp">
+                        <Tooltip title="Average draft position">
+                            <span>ADP</span>
+                        </Tooltip>
+                    </p>
+                    <p className="col col-remove" style={{ paddingRight: 12 }}>
+                        Remove
+                    </p>
+                </>
+            )}
         </div>
       </div>
 
@@ -159,23 +153,22 @@ export default ({
         <div id="table-body">
           {players
             .filter((_, i) => !filteredPlayers[i])
-            .map((player: ITablePlayer, i) => (
+            .map((player: Player, i) => (
               <PlayerTableRow
-                key={player.key}
-                adpCol={adpCol}
+                key={player.Rank} // Use a unique key like Rank
                 mobile={mobile}
-                onPickPlayer={(p: IPlayer) => {
+                onPickPlayer={(p: Player) => {
                   onPickPlayer(p);
                   resetPositionFilter();
                   inputRef.current?.focus();
                 }}
                 draftSoon={draftSoon[i]}
-                byeWeekConflict={byeWeeks[player.bye]}
-                inValuablePosition={valuedPositions[player.pos]}
+                byeWeekConflict={player.bye ? byeWeeks[player.bye] : false}
+                inValuablePosition={valuedPositions[player.Pos]}
                 player={player}
                 rbHandcuff={rbHandcuffs.has(player)}
                 recommended={recommended.has(player)}
-                onRemovePlayer={(p: IPlayer) => {
+                onRemovePlayer={(p: Player) => {
                   onRemovePlayer(p);
                   resetPositionFilter();
                   inputRef.current?.focus();
